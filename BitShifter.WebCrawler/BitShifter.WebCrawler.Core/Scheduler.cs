@@ -2,15 +2,22 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
+using System.Linq;
 
 namespace BitShifter.WebCrawler.Core
 {
     class Scheduler
     {
-        public SchedulerStatus Status { get; private set; } =  SchedulerStatus.Running;
+        public SchedulerStatus Status { get; private set; } = SchedulerStatus.Running;
+        public int Count { get { return _work.Count; } }
 
         int _workerThreads;
-        List<Thread> _threads = new List<Thread>();
+        List<WorkThread> _threads = new List<WorkThread>();
+        Queue<Action> _work = new Queue<Action>();
+
+        object _lock = new object();
+
+        bool _pausing;
 
         public Scheduler(int workerThreads)
         {
@@ -18,24 +25,86 @@ namespace BitShifter.WebCrawler.Core
 
             for (int i = 0; i < _workerThreads; i++)
             {
-                Thread t = new Thread(new ThreadStart(DoWork));
+                WorkThread workThread = new WorkThread();
+                Thread t = new Thread(() => DoWork(workThread));
+                workThread.Thread = t;
                 t.Start();
-                _threads.Add(t);
+                _threads.Add(workThread);
             }
         }
 
-        private void DoWork()
+        public void Pause()
         {
-            while(Status != SchedulerStatus.Stoping)
-            {
+            Console.WriteLine("Pausing...");
+            _pausing = true;
 
+            while (!IsPaused())
+                Thread.Sleep(1);
+
+            Console.WriteLine("Paused!");
+        }
+
+        public bool IsPaused()
+        {
+            if (_threads.Where(i => i.IsWorking == true).Count() == 0 && _work.Count == 0)
+                return true;
+            else
+                return false;
+        }
+
+        public void Resume()
+        {
+            _pausing = false;
+        }
+
+        private void DoWork(WorkThread workThread)
+        {
+            while (Status != SchedulerStatus.Stoping)
+            {
+                Action work = GetWork();
+                if (work != null)
+                {
+                    workThread.IsWorking = true;
+
+                    work();
+                }
+                else
+                    Thread.Sleep(1);
+                workThread.IsWorking = false;
+            }
+        }
+
+        private Action GetWork()
+        {
+            lock (_lock)
+            {
+                if (_work.Count == 0)
+                    return null;
+                else
+                    return _work.Dequeue();
+            }
+        }
+
+        public void EnqueueWork(Action work)
+        {
+            lock (_lock)
+            {
+                _work.Enqueue(work);
             }
         }
     }
 
+    class WorkThread
+    {
+        public Thread Thread { get; set; }
+        public bool IsWorking { get; set; }
+    }
+
+
     enum SchedulerStatus
     {
         Running,
+        Pausing,
         Paused,
         Stoping,
         Stoped,
