@@ -39,13 +39,18 @@ namespace BitShifter.WebCrawler.Core
             _pausing = true;
 
             while (!IsPaused())
-                Thread.Sleep(1);
+            {
+                Console.WriteLine(_work.Count);
+                Console.WriteLine(_threads.Where(i => i.IsWorking == true).Count());
+                Thread.Sleep(1000);
+            }
 
             Console.WriteLine("Paused!");
         }
 
         public bool IsPaused()
         {
+            int working = _threads.Where(i => i.IsWorking == true).Count();
             if (_threads.Where(i => i.IsWorking == true).Count() == 0 && _work.Count == 0)
                 return true;
             else

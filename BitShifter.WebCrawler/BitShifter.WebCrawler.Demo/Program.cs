@@ -1,6 +1,10 @@
-﻿using BitShifter.WebCrawler.Core;
+﻿using AngleSharp.Io;
+using BitShifter.WebCrawler.Core;
+using Newtonsoft.Json;
 using System;
 using System.IO;
+using System.IO.Compression;
+using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace BitShifter.WebCrawler.Demo
@@ -11,19 +15,32 @@ namespace BitShifter.WebCrawler.Demo
 
         static void Main(string[] args)
         {
-            WebCrawlerEngine engine = new WebCrawlerEngine(new WebCrawlerParameters());
-            engine.AddUri(new Uri("https://ekstrabladet.dk"));
+            string cfgContent = System.IO.File.ReadAllText("settings.json");
+            Cfg settings = JsonConvert.DeserializeObject<Cfg>(cfgContent);
+            settings.Init();
+
+            WebCrawlerEngine engine = new WebCrawlerEngine(new WebCrawlerParameters(), settings);
+            engine.Initialize();
+
+            foreach (var url in settings.Sites)
+            {
+                engine.AddUri(new Uri(url));
+            }
+
             engine.OnPageProcessed = OnPagedProcessed;
 
             if (System.IO.File.Exists(File))
+            {
                 engine.Load(File);
+            }
+
 
             Task.Run(() =>
             {
                 engine.Start();
             });
 
-            while(true)
+            while (true)
             {
                 string cmd = Console.ReadLine();
 
@@ -44,7 +61,7 @@ namespace BitShifter.WebCrawler.Demo
 
         private static void OnPagedProcessed(PageProcessedParm parm)
         {
-            Console.WriteLine(parm.Uri.ToString());
+            //Console.WriteLine(parm.Uri.ToString());
         }
     }
 }

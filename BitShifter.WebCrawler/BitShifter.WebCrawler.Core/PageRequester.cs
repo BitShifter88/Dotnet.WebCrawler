@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO.Compression;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -95,6 +97,7 @@ namespace BitShifter.WebCrawler.Core
                         {
                             crawledPage.DownloadContentStarted = DateTime.Now;
                             crawledPage.Content = _contentExtractor.GetContentAsync(response).ConfigureAwait(false).GetAwaiter().GetResult();
+
                             crawledPage.DownloadContentCompleted = DateTime.Now;
                         }
                         else

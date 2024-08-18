@@ -7,12 +7,13 @@ namespace BitShifter.WebCrawler.Core
 {
     public class PageQueue
     {
-        Queue<PageToCrawl> _pageBuffer = new Queue<PageToCrawl>();
-
         object _lock = new object();
 
-        public PageQueue()
+        ElasticSearchInterface _db;
+
+        public PageQueue(ElasticSearchInterface db)
         {
+            _db = db;
             //for (int i = 0; i < queueFragmentation; i++)
             //{
             //    _pageBuffer.Add(new Queue<PageToCrawl>());
@@ -23,8 +24,7 @@ namespace BitShifter.WebCrawler.Core
         {
             lock (_lock)
             {
-                _pageBuffer.Enqueue(page);
-
+                _db.AddPageToCawl(page.Uri.ToString());
             }
         }
 
@@ -32,7 +32,7 @@ namespace BitShifter.WebCrawler.Core
         {
             lock (_lock)
             {
-                return _pageBuffer.Count;
+                return -1;
             }
         }
 
@@ -40,14 +40,19 @@ namespace BitShifter.WebCrawler.Core
         {
             lock (_lock)
             {
-
-                if (_pageBuffer.Count == 0)
+                string url = _db.RequestPageToCrawl();
+                if (url == null)
                     return null;
-                else
-                {
-                    var page = _pageBuffer.Dequeue();
-                    return page;
-                }
+                return new PageToCrawl(new Uri(url));
+
+
+                //if (_pageBuffer.Count == 0)
+                //    return null;
+                //else
+                //{
+                //    var page = _pageBuffer.Dequeue();
+                //    return page;
+                //}
 
             }
         }
@@ -60,7 +65,7 @@ namespace BitShifter.WebCrawler.Core
                 for (int i = 0; i < count; i++)
                 {
                     var page = PageToCrawl.Load(br);
-                    _pageBuffer.Enqueue(page);
+                    //_pageBuffer.Enqueue(page);
                 }
             }
         }
@@ -69,11 +74,11 @@ namespace BitShifter.WebCrawler.Core
         {
             lock (_lock)
             {
-                bw.Write(_pageBuffer.Count);
-                foreach (var item in _pageBuffer)
-                {
-                    item.Save(bw);
-                }
+                //bw.Write(_pageBuffer.Count);
+                //foreach (var item in _pageBuffer)
+                //{
+                //    item.Save(bw);
+                //}
             }
         }
     }

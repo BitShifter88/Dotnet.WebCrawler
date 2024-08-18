@@ -1,0 +1,10 @@
+{
+  "sites": [
+    "https://www.bbc.com/sitemaps/https-index-com-archive.xml",
+    "https://www.bbc.com/sitemaps/https-index-com-news.xml",
+    "https://www.rt.com/sitemap.xml",
+    "https://www.rt.com/newssitemap.xml",
+    "https://www.nytimes.com/sitemap",
+    "https://www.dr.dk"
+  ]
+}

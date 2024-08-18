@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -22,11 +23,26 @@ namespace BitShifter.WebCrawler.Core
             pageContent.Charset = GetCharset(response.Content.Headers, contentText);
             pageContent.Encoding = GetEncoding(pageContent.Charset);
 
-            var contentStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-            using (StreamReader sr = new StreamReader(contentStream, pageContent.Encoding))
+            if (response.Content.Headers.ContentEncoding.Contains("gzip"))
             {
-                pageContent.Text = sr.ReadToEnd();
+                // Decompress the response stream
+                using (var stream = response.Content.ReadAsStreamAsync().ConfigureAwait(false).GetAwaiter().GetResult())
+                using (var decompressedStream = new GZipStream(stream, CompressionMode.Decompress))
+                using (var reader = new StreamReader(decompressedStream))
+                {
+                    pageContent.Text = reader.ReadToEndAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+
+                }
             }
+            else
+            {
+                var contentStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                using (StreamReader sr = new StreamReader(contentStream, pageContent.Encoding))
+                {
+                    pageContent.Text = sr.ReadToEnd();
+                }
+            }
+
 
             return pageContent;
         }

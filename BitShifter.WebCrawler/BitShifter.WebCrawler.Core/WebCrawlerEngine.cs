@@ -1,4 +1,8 @@
-﻿using System;
+﻿using Elastic.Clients.Elasticsearch;
+using Elastic.Clients.Elasticsearch.Nodes;
+using Elastic.Clients.Elasticsearch.TransformManagement;
+using Elastic.Transport;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -14,33 +18,55 @@ namespace BitShifter.WebCrawler.Core
         Scheduler _scheduler;
         AngleSharpHyperlinkParser _linkParser;
         PageRequester _pageRequester;
-        VisitedUrls _visitedUrls;
+        //VisitedUrls _visitedUrls;
         bool _paused;
 
-        public WebCrawlerEngine(WebCrawlerParameters parm)
+        ElasticSearchInterface _db;
+
+        Cfg _settings;
+
+        public WebCrawlerEngine(WebCrawlerParameters parm, Cfg settings)
         {
-            _pageQueue = new PageQueue();
+            _settings = settings;
+            _db = new ElasticSearchInterface(settings);
+            _pageQueue = new PageQueue(_db);
             _scheduler = new Scheduler(parm.WorkerThreads);
             _linkParser = new AngleSharpHyperlinkParser();
             _pageRequester = new PageRequester(parm, new WebContentExtractor());
-            _visitedUrls = new VisitedUrls();
+            //_visitedUrls = new VisitedUrls();
+
         }
 
+        public void Initialize()
+        {
+            //    client.Indices.CreateAsync("newsai", index => index.Mappings(m => m
+            //                                                            .Properties<ArticleEntity>(p => p
+            //                                                                .Keyword(k => k.Name)
+
+            //    var searchResponse = client.SearchAsync<string>(s => s
+            //    .Query(q => q
+            //        .Match(m => m
+            //            .Field(f => f.Length)
+            //            .Query("your search text")
+            //        )
+            //    )
+            //).Result;
+        }
 
         public void AddUri(Uri uri)
         {
             _pageQueue.Add(new PageToCrawl(uri));
-            _visitedUrls.Add(uri);
+            //_visitedUrls.Add(uri);
         }
 
         public void Load(string file)
         {
             using (BinaryReader br = new BinaryReader(new FileStream(file, FileMode.Open)))
             {
-                _visitedUrls.Load(br);
+                //_visitedUrls.Load(br);
                 _pageQueue.Load(br);
 
-                Console.WriteLine($"Loaded! visited urls: {_visitedUrls.Count()}. Queue: {_pageQueue.GetCount()}");
+               // Console.WriteLine($"Loaded! visited urls: {_visitedUrls.Count()}. Queue: {_pageQueue.GetCount()}");
             }
         }
 
@@ -48,10 +74,10 @@ namespace BitShifter.WebCrawler.Core
         {
             Pause();
 
-            Console.WriteLine($"Saving... visited urls: {_visitedUrls.Count()}. Queue: {_pageQueue.GetCount()}");
+            //Console.WriteLine($"Saving... visited urls: {_visitedUrls.Count()}. Queue: {_pageQueue.GetCount()}");
             using (BinaryWriter bw = new BinaryWriter(new FileStream(file, FileMode.Create)))
             {
-                _visitedUrls.Save(bw);
+                //_visitedUrls.Save(bw);
                 _pageQueue.Save(bw);
             }
             Console.WriteLine("Saved!");
@@ -93,18 +119,23 @@ namespace BitShifter.WebCrawler.Core
 
         private void ProcessPage(PageToCrawl page)
         {
-            _visitedUrls.Add(page.Uri);
             CrawledPage crawledPage = _pageRequester.MakeRequest(page.Uri);
+            if (crawledPage.HttpRequestException != null)
+            {
+                return;
+            }
             crawledPage.ParsedLinks = _linkParser.GetLinks(crawledPage);
 
             foreach (var link in crawledPage.ParsedLinks)
             {
-                if (_visitedUrls.Contains(link.HrefValue) ||
-                    !link.HrefValue.ToString().StartsWith("http"))
+                if (_db.HasBeenCrawled(link.HrefValue.ToString()))
                     continue;
 
                 _pageQueue.Add(new PageToCrawl(link.HrefValue));
             }
+
+            _db.AddCrawledUrl(page.Uri.ToString());
+
 
             if (OnPageProcessed != null)
                 OnPageProcessed(new PageProcessedParm(page.Uri));

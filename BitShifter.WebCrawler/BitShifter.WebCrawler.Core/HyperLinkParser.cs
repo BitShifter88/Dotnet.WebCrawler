@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Xml.Linq;
 using AngleSharp.Dom;
 
 namespace BitShifter.WebCrawler.Core
@@ -41,8 +42,41 @@ namespace BitShifter.WebCrawler.Core
                 .Where(e => HasRelCanonicalPointingToDifferentUrl(e, crawledPage.Uri.ToString()))
                 .Select(e => new HyperLink() { RawHrefValue = e.GetAttribute("href"), RawHrefText = e.Text() });
 
-            return hrefValues.Concat(canonicalHref);
-        }
+            List<HyperLink> hyperLinks = new List<HyperLink>();
+            if (crawledPage.Uri.ToString().Contains("sitemap"))
+            {
+                try
+                {
+                    var test2 = crawledPage.Content.Text;
+                    XDocument doc = XDocument.Parse(test2);
+                    ForEachElement(doc.Root, element =>
+                    {
+                        if (element.Name.LocalName != "loc")
+                            return;
+
+                        if (string.IsNullOrEmpty(element.Value))
+                            return;
+
+                        hyperLinks.Add(new HyperLink() { HrefValue = new Uri(element.Value), RawHrefText = element.Value, RawHrefValue = element.Value });
+                    });
+                }
+                catch (Exception e)
+                {
+
+                }
+            }
+
+            return hrefValues.Concat(canonicalHref).Concat(hyperLinks);
+            }
+
+            private void ForEachElement(XElement root, Action<XElement> action)
+            {
+                foreach (var element in root.Elements())
+                {
+                    action(element);
+                    ForEachElement(element, action);
+                }
+            }
 
         protected override string GetBaseHrefValue(CrawledPage crawledPage)
         {
