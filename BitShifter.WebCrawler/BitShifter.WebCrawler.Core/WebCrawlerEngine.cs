@@ -14,14 +14,12 @@ namespace BitShifter.WebCrawler.Core
     {
         public Action<PageProcessedParm> OnPageProcessed { get; set; }
 
-        PageQueue _pageQueue;
+        ElasticSearchInterface _db;
         Scheduler _scheduler;
         AngleSharpHyperlinkParser _linkParser;
         PageRequester _pageRequester;
         //VisitedUrls _visitedUrls;
         bool _paused;
-
-        ElasticSearchInterface _db;
 
         Cfg _settings;
 
@@ -29,7 +27,6 @@ namespace BitShifter.WebCrawler.Core
         {
             _settings = settings;
             _db = new ElasticSearchInterface(settings);
-            _pageQueue = new PageQueue(_db);
             _scheduler = new Scheduler(parm.WorkerThreads);
             _linkParser = new AngleSharpHyperlinkParser();
             _pageRequester = new PageRequester(parm, new WebContentExtractor());
@@ -55,32 +52,32 @@ namespace BitShifter.WebCrawler.Core
 
         public void AddUri(Uri uri)
         {
-            _pageQueue.Add(new PageToCrawl(uri));
+            _db.AddPageToCawl(uri.ToString());
             //_visitedUrls.Add(uri);
         }
 
         public void Load(string file)
         {
-            using (BinaryReader br = new BinaryReader(new FileStream(file, FileMode.Open)))
-            {
-                //_visitedUrls.Load(br);
-                _pageQueue.Load(br);
+            //using (BinaryReader br = new BinaryReader(new FileStream(file, FileMode.Open)))
+            //{
+            //    //_visitedUrls.Load(br);
+            //    _db.Load(br);
 
-               // Console.WriteLine($"Loaded! visited urls: {_visitedUrls.Count()}. Queue: {_pageQueue.GetCount()}");
-            }
+            //   // Console.WriteLine($"Loaded! visited urls: {_visitedUrls.Count()}. Queue: {_pageQueue.GetCount()}");
+            //}
         }
 
         public void Save(string file)
         {
-            Pause();
+            //Pause();
 
-            //Console.WriteLine($"Saving... visited urls: {_visitedUrls.Count()}. Queue: {_pageQueue.GetCount()}");
-            using (BinaryWriter bw = new BinaryWriter(new FileStream(file, FileMode.Create)))
-            {
-                //_visitedUrls.Save(bw);
-                _pageQueue.Save(bw);
-            }
-            Console.WriteLine("Saved!");
+            ////Console.WriteLine($"Saving... visited urls: {_visitedUrls.Count()}. Queue: {_pageQueue.GetCount()}");
+            //using (BinaryWriter bw = new BinaryWriter(new FileStream(file, FileMode.Create)))
+            //{
+            //    //_visitedUrls.Save(bw);
+            //    _db.Save(bw);
+            //}
+            //Console.WriteLine("Saved!");
         }
 
         public void Resume()
@@ -102,14 +99,17 @@ namespace BitShifter.WebCrawler.Core
                 while (_paused)
                     Thread.Sleep(1);
 
-                if (_scheduler.Count > 100)
+                if (_scheduler.Count > 200)
                 {
                     Thread.Sleep(0);
                     continue;
                 }
-                PageToCrawl page = _pageQueue.RequestPage();
-                if (page != null)
+
+                string pageStr = _db.RequestPageToCrawl();
+
+                if (pageStr != null)
                 {
+                    PageToCrawl page = new PageToCrawl(new Uri(pageStr));
                     _scheduler.EnqueueWork(() => { ProcessPage(page); });
                 }
                 else
@@ -131,7 +131,7 @@ namespace BitShifter.WebCrawler.Core
                 if (_db.HasBeenCrawled(link.HrefValue.ToString()))
                     continue;
 
-                _pageQueue.Add(new PageToCrawl(link.HrefValue));
+                _db.AddPageToCawl(link.HrefValue.ToString());
             }
 
             _db.AddCrawledUrl(page.Uri.ToString());

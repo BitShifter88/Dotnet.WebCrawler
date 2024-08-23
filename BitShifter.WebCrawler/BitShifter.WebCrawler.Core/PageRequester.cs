@@ -74,12 +74,13 @@ namespace BitShifter.WebCrawler.Core
             catch (TaskCanceledException ex)
             {
                 crawledPage.HttpRequestException = new HttpRequestException("Request timeout occurred", ex);//https://stackoverflow.com/questions/10547895/how-can-i-tell-when-httpclient-has-timed-out
-                //Log.Debug("Error occurred requesting url [{0}] {@Exception}", uri.AbsoluteUri, crawledPage.HttpRequestException);
+               
+                Console.WriteLine("Error calling url" + uri.AbsoluteUri + crawledPage.HttpRequestException.ToString());
             }
             catch (Exception e)
             {
                 crawledPage.HttpRequestException = new HttpRequestException("Unknown error occurred", e);
-                //Log.Debug("Error occurred requesting url [{0}] {@Exception}", uri.AbsoluteUri, crawledPage.HttpRequestException);
+                Console.WriteLine("Error calling url" + uri.AbsoluteUri + crawledPage.HttpRequestException.ToString());
             }
             finally
             {

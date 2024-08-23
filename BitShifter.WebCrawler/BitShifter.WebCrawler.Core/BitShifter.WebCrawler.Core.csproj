@@ -13,6 +13,7 @@
     <PackageReference Include="AngleSharp" Version="0.16.0" />
     <PackageReference Include="Elastic.Clients.Elasticsearch" Version="8.15.1" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.8" />
+    <PackageReference Include="MySql.Data" Version="9.0.0" />
   </ItemGroup>
 
 </Project>
